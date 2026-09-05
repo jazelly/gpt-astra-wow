@@ -717,13 +717,16 @@ kbd {
   color: #d0d6c0;
 }
 .world-label.enemy {
+  --enemy-color: #f17e70;
   font-size: 9px;
-  color: #f2bda8;
+  color: var(--enemy-color);
+}
+.world-label.enemy.neutral {
+  --enemy-color: #f0d769;
 }
 .world-label.enemy.boss {
   font-family: Cinzel;
   font-size: 13px;
-  color: #e6acd2;
 }
 .world-label .enemy-bar {
   height: 3px;
@@ -734,7 +737,21 @@ kbd {
 .enemy-bar i {
   display: block;
   height: 100%;
-  background: #c08064;
+  background: var(--enemy-color);
+}
+#target-frame #target-kind,
+#target-frame #target-name {
+  color: #f17e70;
+}
+#target-frame.neutral #target-kind,
+#target-frame.neutral #target-name {
+  color: #f0d769;
+}
+#target-frame.neutral .health i {
+  background: linear-gradient(90deg, #a78c36, #f0d769);
+}
+#world.rotating-camera {
+  cursor: grabbing;
 }
 .floater {
   position: absolute;

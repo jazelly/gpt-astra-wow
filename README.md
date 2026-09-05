@@ -27,6 +27,8 @@ npm run preview
 | Action                            | Input                                 |
 | --------------------------------- | ------------------------------------- |
 | Move                              | WASD, arrow keys, or click the ground |
+| Orbit camera / adjust elevation   | Hold right mouse button and drag      |
+| Zoom camera                       | Mouse wheel                           |
 | Approach and automatically attack | Click an enemy                        |
 | Select nearby enemy               | Tab                                   |
 | Basic attack                      | Hold Space or press 1                 |
@@ -42,6 +44,10 @@ npm run preview
 | Controls                          | H                                     |
 
 Every ability can also be activated from the on-screen action bar. Manual movement cancels click-to-move and automatic attacks.
+
+Movement follows the camera direction. Right dragging rotates the view without moving, targeting, or attacking. The game suppresses the browser context menu.
+
+Yellow-name timber wolves are neutral: approaching or targeting them does not provoke them. Dealing damage makes that wolf hostile and turns its name red. Red-name marauders attack within 8 meters; the Hollow King attacks within 13 meters, including while his quest ward is active. Creatures disengage when you escape beyond 24 meters or reach the protected camp. Neutral wolves turn yellow again after disengaging. Nameplates, target frames, and minimap markers use the same hostility colors.
 
 ## Complete the adventure
 
@@ -69,3 +75,8 @@ Verified in the actual browser through keyboard and mouse input, without changin
 - Ranger: ranged attacks and Arrow Rain produced kills and XP rewards.
 - Healing potions, healing skills, guard skills, inventory, quest journal, expanded map, pause, and post-victory exploration were exercised.
 - The production build loaded successfully with locally bundled fonts and no external resource requests.
+
+Camera and disposition update verified through real browser input:
+
+- Right-click context menus were suppressed on both the world canvas and HUD; right dragging changed camera yaw and pitch without starting movement or attacks, wheel input changed zoom, and releasing over the header correctly ended dragging. WASD followed the rotated view.
+- A nearby targeted wolf stayed neutral until damaged; only the struck wolf turned red and retaliated, then returned to yellow after disengaging. A marauder remained idle at 8.44 meters and pursued at 7.75 meters while the other marauders stayed idle. The boss stayed idle outside 13 meters and pursued inside its own range.

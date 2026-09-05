@@ -672,6 +672,8 @@ function makeEnemy(type, x, z) {
   const hp = type === "wolf" ? 70 : type === "boss" ? 600 : 110;
   const e = {
     type,
+    disposition: type === "wolf" ? "neutral" : "hostile",
+    aggroRadius: type === "wolf" ? 0 : type === "boss" ? 13 : 8,
     mesh: g,
     hp,
     maxHp: hp,
@@ -694,6 +696,9 @@ function makeEnemy(type, x, z) {
   $("world-labels").append(e.label);
   enemies.push(e);
   return e;
+}
+function isHostile(enemy) {
+  return enemy.disposition === "hostile" || enemy.aggro;
 }
 makeEnemy("wolf", -17, 13);
 makeEnemy("wolf", -23, 10);
@@ -1079,7 +1084,7 @@ function inventory() {
 function help() {
   if (state.dead) return;
   openModal(
-    '<div class="eyebrow">FIELD GUIDE</div><h2>Your adventure awaits</h2><div class="row"><span>Move</span><strong>W A S D / Arrow keys / Click ground</strong></div><div class="row"><span>Target enemy</span><strong>Click enemy / Tab</strong></div><div class="row"><span>Basic attack</span><strong>Hold Space / 1</strong></div><div class="row"><span>Abilities / Healing potion</span><strong>2 · 3 · 4 / Q</strong></div><div class="row"><span>Talk / Inventory / Map</span><strong>E / B / M</strong></div><div class="row"><span>Pause / Help</span><strong>Esc / H</strong></div><p>Click an enemy to approach and attack automatically. Skills also work by clicking the action bar. Stay out of the Hollow King’s red circle. Healing potions and your fourth skill keep you in the fight.</p><p>Follow the gold quest markers. Clear the wolves to the west, the marauders across the bridge, then the ruins in the north. Return to Aldric after each quest for stronger equipment.</p><button class="primary" id="help-close">GOT IT</button>',
+    '<div class="eyebrow">FIELD GUIDE</div><h2>Your adventure awaits</h2><div class="row"><span>Move</span><strong>W A S D / Arrow keys / Click ground</strong></div><div class="row"><span>Camera / Zoom</span><strong>Right mouse drag / Mouse wheel</strong></div><div class="row"><span>Target enemy</span><strong>Click enemy / Tab</strong></div><div class="row"><span>Basic attack</span><strong>Hold Space / 1</strong></div><div class="row"><span>Abilities / Healing potion</span><strong>2 · 3 · 4 / Q</strong></div><div class="row"><span>Talk / Inventory / Map</span><strong>E / B / M</strong></div><div class="row"><span>Pause / Help</span><strong>Esc / H</strong></div><p>Right drag to orbit the camera; use the wheel to zoom. Movement follows the camera. Yellow names are neutral and retaliate only when damaged. Red names attack within their own aggro range. Click an enemy to approach and attack automatically. Skills also work by clicking the action bar. Stay out of the Hollow King’s red circle. Healing potions and your fourth skill keep you in the fight.</p><p>Follow the gold quest markers. Clear the wolves to the west, the marauders across the bridge, then the ruins in the north. Return to Aldric after each quest for stronger equipment.</p><button class="primary" id="help-close">GOT IT</button>',
   );
   $("help-close").onclick = closeModal;
 }
@@ -1303,11 +1308,18 @@ function updateUI() {
     `LEVEL ${state.level} · ${state.xp} / ${maxXP()} XP`;
   $("target-frame").hidden = !state.target || state.target.dead;
   if (state.target && !state.target.dead) {
+    const hostile = isHostile(state.target);
+    $("target-frame").classList.toggle("neutral", !hostile);
     $("target-name").textContent = state.target.name;
     $("target-kind").textContent =
-      state.target.type === "boss"
-        ? "ELITE · LEVEL 5"
-        : "HOSTILE · LEVEL " + (state.target.type === "wolf" ? "1" : "3");
+      (hostile ? "HOSTILE" : "NEUTRAL") +
+      (state.target.type === "boss"
+        ? " · ELITE · LEVEL 5"
+        : " · LEVEL " + (state.target.type === "wolf" ? "1" : "3"));
+    $("target-kind").title =
+      state.target.disposition === "neutral"
+        ? "Retaliates only when attacked"
+        : `Attacks within ${state.target.aggroRadius} meters`;
     $("target-hp").style.width =
       (state.target.hp / state.target.maxHp) * 100 + "%";
     $("target-health").textContent =
@@ -1321,6 +1333,14 @@ function updateUI() {
     if (i === 4)
       button.querySelector(".label").textContent = `POTION ×${state.potions}`;
   });
+  for (const enemy of enemies) {
+    enemy.label.classList.toggle("neutral", !isHostile(enemy));
+  }
+  if (state.target) {
+    targetRing.material.color.set(
+      isHostile(state.target) ? "#f17e70" : "#f0d769",
+    );
+  }
 }
 function buildHotbar() {
   const skills = [
@@ -1397,7 +1417,7 @@ $("help").onclick = help;
 $("journal-button").onclick = () => {
   if (!state.started || state.dead) return;
   openModal(
-    `<div class="eyebrow">CHAPTER I · QUEST JOURNAL</div><h2>${questData[state.quest].title}</h2><p>${questData[state.quest].description}</p>${$("objectives").innerHTML}<div class="row"><span>Quest reward</span><strong>${questData[state.quest].reward}</strong></div><p>Your minimap shows your position in white, the marshal in gold, and hostiles in red. Press M to expand it.</p><button class="primary" id="journal-close">CONTINUE ADVENTURE</button>`,
+    `<div class="eyebrow">CHAPTER I · QUEST JOURNAL</div><h2>${questData[state.quest].title}</h2><p>${questData[state.quest].description}</p>${$("objectives").innerHTML}<div class="row"><span>Quest reward</span><strong>${questData[state.quest].reward}</strong></div><p>Your minimap shows your position in white, the marshal in gold, neutral creatures in yellow, and hostile creatures in red. Press M to expand it.</p><button class="primary" id="journal-close">CONTINUE ADVENTURE</button>`,
   );
   $("journal-close").onclick = closeModal;
 };
@@ -1469,11 +1489,37 @@ addEventListener("keydown", (event) => {
   }
 });
 addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
-addEventListener("blur", () => keys.clear());
+const cameraOrbit = {
+  yaw: Math.atan2(20, 30),
+  pitch: Math.atan2(26, Math.hypot(20, 30)),
+  distance: Math.hypot(20, 26, 30),
+};
+let cameraDrag = null;
+function endCameraDrag() {
+  const pointerId = cameraDrag?.id;
+  cameraDrag = null;
+  $("world").classList.remove("rotating-camera");
+  if (pointerId !== undefined && $("world").hasPointerCapture(pointerId)) {
+    $("world").releasePointerCapture(pointerId);
+  }
+}
+addEventListener("blur", () => {
+  keys.clear();
+  endCameraDrag();
+});
+document.addEventListener("contextmenu", (event) => event.preventDefault());
 const raycaster = new THREE.Raycaster(),
   pointer = new THREE.Vector2();
 $("world").addEventListener("pointerdown", (event) => {
   if (!state.started || state.paused || state.dead || state.map) return;
+  if (event.button === 2) {
+    event.preventDefault();
+    cameraDrag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    $("world").setPointerCapture(event.pointerId);
+    $("world").classList.add("rotating-camera");
+    return;
+  }
+  if (event.button !== 0 || cameraDrag) return;
   pointer.set(
     (event.clientX / innerWidth) * 2 - 1,
     (-event.clientY / innerHeight) * 2 + 1,
@@ -1517,6 +1563,42 @@ $("world").addEventListener("pointerdown", (event) => {
     destinationRing.visible = true;
   }
 });
+$("world").addEventListener("pointermove", (event) => {
+  if (!cameraDrag || cameraDrag.id !== event.pointerId) return;
+  if (state.paused || state.dead || state.map || !(event.buttons & 2)) {
+    endCameraDrag();
+    return;
+  }
+  cameraOrbit.yaw -= (event.clientX - cameraDrag.x) * 0.006;
+  cameraOrbit.pitch = clamp(
+    cameraOrbit.pitch + (event.clientY - cameraDrag.y) * 0.004,
+    0.22,
+    1.25,
+  );
+  cameraDrag.x = event.clientX;
+  cameraDrag.y = event.clientY;
+});
+$("world").addEventListener("pointerup", (event) => {
+  if (event.button === 2 && cameraDrag?.id === event.pointerId) endCameraDrag();
+});
+$("world").addEventListener("pointercancel", endCameraDrag);
+$("world").addEventListener("lostpointercapture", endCameraDrag);
+$("world").addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    if (!state.started || state.paused || state.dead || state.map) return;
+    const delta =
+      event.deltaY *
+      (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
+    cameraOrbit.distance = clamp(
+      cameraOrbit.distance * Math.exp(clamp(delta * 0.001, -1, 1)),
+      12,
+      60,
+    );
+  },
+  { passive: false },
+);
 function canMove(x, z) {
   if (x < -46 || x > 46 || z < -57 || z > 48) return false;
   for (const c of colliders)
@@ -1543,14 +1625,14 @@ function updatePlayer(dt) {
   for (let i = 0; i < 5; i++)
     state.cooldowns[i] = Math.max(0, state.cooldowns[i] - dt);
   const movement = new THREE.Vector3();
-  if (keys.has("w") || keys.has("arrowup"))
-    movement.add(new THREE.Vector3(-0.56, 0, -0.83));
-  if (keys.has("s") || keys.has("arrowdown"))
-    movement.add(new THREE.Vector3(0.56, 0, 0.83));
-  if (keys.has("a") || keys.has("arrowleft"))
-    movement.add(new THREE.Vector3(-0.83, 0, 0.56));
-  if (keys.has("d") || keys.has("arrowright"))
-    movement.add(new THREE.Vector3(0.83, 0, -0.56));
+  const forward = camera.getWorldDirection(new THREE.Vector3());
+  forward.y = 0;
+  forward.normalize();
+  const right = new THREE.Vector3(-forward.z, 0, forward.x);
+  if (keys.has("w") || keys.has("arrowup")) movement.add(forward);
+  if (keys.has("s") || keys.has("arrowdown")) movement.sub(forward);
+  if (keys.has("a") || keys.has("arrowleft")) movement.sub(right);
+  if (keys.has("d") || keys.has("arrowright")) movement.add(right);
   if (movement.lengthSq() > 0) {
     state.destination = null;
     state.autoAttack = false;
@@ -1622,8 +1704,7 @@ function updateEnemies(dt) {
     e.frozen = Math.max(0, e.frozen - dt);
     e.hit = Math.max(0, e.hit - dt);
     const d = e.mesh.position.distanceTo(player.position);
-    if (e.type === "boss" && state.quest < 3) continue;
-    if (d < (e.type === "boss" ? 13 : 8)) e.aggro = true;
+    if (e.disposition === "hostile" && d < e.aggroRadius) e.aggro = true;
     if (e.aggro && (d > 24 || player.position.distanceTo(npc.position) < 7))
       e.aggro = false;
     if (e.type === "boss" && state.bossCharge > 0) continue;
@@ -1754,7 +1835,7 @@ function drawMap() {
   ctx.stroke();
   for (const e of enemies) {
     if (e.dead) continue;
-    ctx.fillStyle = e.type === "boss" ? "#db9ed2" : "#d49978";
+    ctx.fillStyle = isHostile(e) ? "#f17e70" : "#f0d769";
     ctx.beginPath();
     ctx.arc(
       px(e.mesh.position.x),
@@ -1851,7 +1932,16 @@ function frame(now) {
     updateEnemies(dt);
   }
   if (state.started) {
-    desiredCamera.copy(player.position).add(new THREE.Vector3(20, 27, 30));
+    const horizontal = Math.cos(cameraOrbit.pitch) * cameraOrbit.distance;
+    desiredCamera
+      .copy(player.position)
+      .add(
+        new THREE.Vector3(
+          Math.sin(cameraOrbit.yaw) * horizontal,
+          1 + Math.sin(cameraOrbit.pitch) * cameraOrbit.distance,
+          Math.cos(cameraOrbit.yaw) * horizontal,
+        ),
+      );
     camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 4));
     look.lerp(
       player.position.clone().add(new THREE.Vector3(0, 1, 0)),
@@ -1956,10 +2046,22 @@ window.gameStatus = () => ({
   won: state.won,
   dead: state.dead,
   position: { x: player.position.x, z: player.position.z },
+  camera: {
+    ...cameraOrbit,
+    position: camera.position.toArray(),
+    dragging: !!cameraDrag,
+  },
+  destination: state.destination
+    ? { x: state.destination.x, z: state.destination.z }
+    : null,
+  autoAttack: state.autoAttack,
   target: state.target?.name ?? null,
   enemies: enemies.map((e) => ({
     name: e.name,
     type: e.type,
+    disposition: e.disposition,
+    aggroRadius: e.aggroRadius,
+    aggro: e.aggro,
     hp: e.hp,
     dead: e.dead,
     x: e.mesh.position.x,
