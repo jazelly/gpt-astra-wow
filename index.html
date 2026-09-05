@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#121b20" />
+    <title>Echoes of Elwynn — A Warcraft Adventure</title>
+  </head>
+  <body>
+    <canvas id="world"></canvas>
+    <div id="vignette"></div>
+    <div id="damage-flash"></div>
+    <header>
+      <a class="brand" href="#" aria-label="Echoes of Elwynn"
+        ><span class="crest">♜</span
+        ><span
+          >ECHOES <i>of</i> ELWYNN<small>A WARCRAFT ADVENTURE</small></span
+        ></a
+      >
+      <div class="location">
+        <span class="diamond">◆</span>
+        <div id="zone">NORTHSHIRE VALLEY</div>
+        <small id="zone-sub">ALLIANCE TERRITORY · LEVEL 1–5</small>
+      </div>
+      <div class="header-actions">
+        <span class="live-dot"></span><span>Solo adventure</span
+        ><button id="sound" aria-label="Toggle sound" title="Toggle sound">
+          ♫</button
+        ><button id="help" aria-label="Help" title="Help [H]">?</button
+        ><button id="pause" aria-label="Pause" title="Pause [Esc]">Ⅱ</button>
+      </div>
+    </header>
+    <section id="player-frame">
+      <div class="portrait">
+        <span id="portrait-icon">♜</span><b id="level">1</b>
+      </div>
+      <div class="player-info">
+        <div class="name-row">
+          <strong id="player-name">Adventurer</strong
+          ><span id="class-label">WARRIOR</span>
+        </div>
+        <div class="bar health">
+          <i id="hp-bar"></i><span id="hp-text">180 / 180</span>
+        </div>
+        <div class="bar resource">
+          <i id="mp-bar"></i><span id="mp-text">100 / 100</span>
+        </div>
+      </div>
+    </section>
+    <section id="target-frame" hidden>
+      <small id="target-kind">HOSTILE</small
+      ><strong id="target-name">Forest wolf</strong>
+      <div class="bar health">
+        <i id="target-hp"></i><span id="target-health"></span>
+      </div>
+    </section>
+    <aside id="right-panel">
+      <div class="map-frame">
+        <div class="map-heading">
+          <span>NORTHSHIRE</span><span id="clock">08:42</span>
+        </div>
+        <canvas
+          id="minimap"
+          width="240"
+          height="190"
+          aria-label="World minimap"
+        ></canvas>
+        <div class="map-footer">
+          <span>✦ <span id="coords">0, 0</span></span
+          ><button id="map-toggle">EXPAND <kbd>M</kbd></button>
+        </div>
+      </div>
+      <section class="quest-panel">
+        <div class="eyebrow">
+          <span>◆</span> QUEST LOG <small id="quest-count">1 ACTIVE</small>
+        </div>
+        <h2 id="quest-title">A shadow in the forest</h2>
+        <p id="quest-description">Speak to Marshal Aldric at the camp.</p>
+        <div id="objectives"></div>
+        <div class="quest-reward">
+          <span>REWARD</span><b id="reward">80 XP <em>·</em> 20 GOLD</b>
+        </div>
+      </section>
+      <div class="region-note">
+        <span>✧</span> A small beginning. A great adventure.
+      </div>
+    </aside>
+    <div id="world-labels"></div>
+    <div id="floaters"></div>
+    <div id="toast"></div>
+    <div id="zone-banner">
+      <small>DISCOVERED</small><strong>Northshire Valley</strong>
+    </div>
+    <div id="interaction" hidden>
+      <kbd>E</kbd><span>Speak to Marshal Aldric</span>
+    </div>
+    <section id="chat">
+      <div class="chat-tabs">
+        <b>WORLD</b><span>COMBAT</span><span class="online">● LOCAL</span>
+      </div>
+      <div id="chat-lines"></div>
+    </section>
+    <footer>
+      <div class="xp-track">
+        <i id="xp-bar"></i><span id="xp-text">LEVEL 1 · 0 / 80 XP</span>
+      </div>
+      <div class="action-area">
+        <div class="hero-meta">
+          <span class="hero-sigil">♜</span>
+          <div>
+            <strong id="footer-class">Alliance Warrior</strong
+            ><small id="rank">Defender of Northshire</small>
+          </div>
+        </div>
+        <div id="hotbar"></div>
+        <div class="utility">
+          <button id="inventory-button" title="Inventory [B]">
+            ▣<kbd>B</kbd></button
+          ><button id="journal-button" title="Quest journal [J]">
+            ▤<kbd>J</kbd></button
+          ><span class="gold"><span>●</span> <b id="gold">0</b></span>
+        </div>
+      </div>
+      <div class="footer-hints">
+        <span
+          ><kbd>W A S D</kbd> Move <i>·</i> <kbd>CLICK</kbd> Move / target
+          <i>·</i> <kbd>SPACE</kbd> Attack <i>·</i> <kbd>E</kbd> Interact</span
+        ><span>ELWYNN FOREST <i>✦</i> CHAPTER I</span>
+      </div>
+    </footer>
+    <div id="modal-backdrop" class="overlay">
+      <div id="modal" class="modal"></div>
+    </div>
+    <div id="start" class="overlay">
+      <div class="start-card">
+        <div class="overline">AN ALLIANCE CHRONICLE</div>
+        <div class="start-crest">♜</div>
+        <h1>ECHOES <i>of</i><br />ELWYNN</h1>
+        <div class="ornament">────── ◆ ──────</div>
+        <p class="intro">
+          Beneath the golden boughs, an ancient darkness stirs.<br />Every
+          legend begins with a single step.
+        </p>
+        <div class="choose-label">CHOOSE YOUR CALLING</div>
+        <div class="classes">
+          <button class="class-card selected" data-class="warrior">
+            <span>⚔</span><strong>Warrior</strong
+            ><small>STEEL & COURAGE</small></button
+          ><button class="class-card" data-class="mage">
+            <span>✦</span><strong>Mage</strong
+            ><small>ARCANE & FIRE</small></button
+          ><button class="class-card" data-class="ranger">
+            <span>➶</span><strong>Ranger</strong
+            ><small>PRECISION & NATURE</small>
+          </button>
+        </div>
+        <p id="class-description">
+          A steadfast knight. Heavy armor, sweeping strikes, and unbreakable
+          resolve.
+        </p>
+        <button id="begin" class="primary">
+          ENTER THE WORLD <span>→</span>
+        </button>
+        <div class="start-foot">
+          SINGLE PLAYER <span>◆</span> 10–15 MIN ADVENTURE <span>◆</span> THREE
+          CLASSES
+        </div>
+      </div>
+      <div class="start-caption">
+        <span>01 / ELWYNN FOREST</span>
+        <p>Some places feel like coming home.</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
